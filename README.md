@@ -242,3 +242,14 @@ project/
 
 - Python 3.6+
 - PyYAML 6.0.2
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Add your changes with tests
+4. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
