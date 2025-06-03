@@ -242,11 +242,3 @@ project/
 
 - Python 3.6+
 - PyYAML 6.0.2
-
-## License
-
-[Add your license information here]
-
-## Contributing
-
-[Add contributing guidelines here]
