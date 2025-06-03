@@ -9,7 +9,7 @@ A Python tool for combining Markdown files from a folder hierarchy into a single
 - **Title management**: Automatically handles titles and heading levels
 - **Frontmatter support**: Preserves YAML frontmatter as metadata sections
 - **Flexible output**: Control what gets included and how it's formatted
-- **Recursive processing**: Optionally compile subdirectories recursively
+- **Recursive processing**: Optionally compile subdirectories recursively into separate files
 - **Title substitutions**: Replace titles using configuration files
 
 ## Installation
@@ -47,8 +47,10 @@ python compile_markdown.py [OPTIONS]
 - `-c, --config PATH`: Path to the YAML config file (default: `compile.yaml` in source directory)
 - `-k, --keep-numbers`: Keep leading numbers in titles (e.g., "01 Introduction" stays as is)
 - `-o, --output PATH`: Output directory or file path (default: `./compiled` in source directory)
+  - If PATH is a directory: Creates a `.md` file named after the source folder inside the directory
+  - If PATH is a file: Uses the specified filename directly
 - `-p, --propagate`: Propagate compilation up to parent directories
-- `-r, --recursive`: Compile files recursively through subdirectories
+- `-r, --recursive`: Compile files recursively - creates separate compiled files for each subdirectory
 - `-s, --source PATH`: Path to the source directory (default: current working directory)
 - `-t, --target PATH`: Path to the target directory relative to source directory
 - `-y, --yaml PATH`: Path to the YAML order file (default: `order.yaml` in directory to compile)
@@ -98,6 +100,46 @@ substitutions:
   "API Reference": "Complete API Documentation"
 ```
 
+## Output Behavior
+
+The tool's output behavior depends on whether you specify a directory or a file path:
+
+### Output to Directory
+When the output path is a directory (or doesn't exist and will be created as a directory):
+```bash
+python compile_markdown.py -s ./my-docs -o ./output/
+```
+- Creates the directory `./output/` if it doesn't exist
+- Generates a file named `my-docs.md` inside the output directory
+- The filename is derived from the source folder name (with leading numbers removed)
+
+### Output to Specific File
+When the output path includes a filename:
+```bash
+python compile_markdown.py -s ./my-docs -o ./output/documentation.md
+```
+- Creates the directory `./output/` if it doesn't exist
+- Generates a file named `documentation.md` with the compiled content
+- Uses the exact filename you specify
+
+### Recursive Output
+When using the `--recursive` flag, the tool creates separate compiled files for each subdirectory:
+```bash
+python compile_markdown.py -r -s ./my-docs -o ./output/
+```
+- Creates a compiled file for the root directory: `./output/my-docs.md`
+- Creates a compiled file for each subdirectory: `./output/subdir1/subdir1.md`, `./output/subdir2/subdir2.md`, etc.
+- Maintains the directory structure in the output, with each folder getting its own compiled Markdown file
+- Each subdirectory's compiled file contains only the Markdown files from that specific directory
+
+### Default Behavior
+Without specifying an output:
+```bash
+python compile_markdown.py
+```
+- Creates a `compiled` directory in the source folder
+- Generates a file named after the source directory (e.g., `my-project.md`)
+
 ## How It Works
 
 1. **File Discovery**: The tool scans the source directory for Markdown files
@@ -111,19 +153,28 @@ substitutions:
 
 ## Examples
 
-### Example 1: Simple Compilation
+### Example 1: Basic Output Options
 ```bash
-# Compile current directory
+# Compile current directory to default location (./compiled/)
 python compile_markdown.py
 
-# Compile specific source to specific output
+# Output to a specific directory (creates "docs.md" inside ./output/)
+python compile_markdown.py -s ./docs -o ./output/
+
+# Output to a specific file
 python compile_markdown.py -s ./docs -o ./output/combined.md
+
+# Output to current directory with custom filename
+python compile_markdown.py -o ./my-documentation.md
 ```
 
-### Example 2: Recursive with Custom Order
+### Example 2: Recursive Compilation
 ```bash
-# Recursively compile with custom order file
-python compile_markdown.py -r -y ./config/book-order.yaml -o ./published/
+# Recursively compile each subdirectory into separate files
+python compile_markdown.py -r -s ./docs -o ./output/
+
+# Recursive with custom order file and all options
+python compile_markdown.py -r -y ./config/book-order.yaml -o ./published/ --all
 ```
 
 ### Example 3: Full Configuration
@@ -139,8 +190,9 @@ python compile_markdown.py \
   --keep-numbers
 ```
 
-## File Structure Example
+## File Structure Examples
 
+### Example 1: Default Output (Directory)
 ```
 project/
 ├── compile_markdown.py
@@ -156,7 +208,27 @@ project/
 │   │   └── plugins.md
 │   └── conclusion.md
 └── compiled/
-    └── content.md
+    └── content.md      # Auto-generated filename from source folder
+```
+
+### Example 3: Recursive Output Structure
+```
+project/
+├── compile_markdown.py
+├── docs/
+│   ├── introduction.md
+│   ├── getting-started/
+│   │   ├── installation.md
+│   │   └── configuration.md
+│   └── advanced/
+│       ├── api.md
+│       └── plugins.md
+└── output/
+    ├── docs.md                    # Root compilation
+    ├── getting-started/
+    │   └── getting-started.md     # Subdirectory compilation
+    └── advanced/
+        └── advanced.md            # Subdirectory compilation
 ```
 
 ## Special Files
