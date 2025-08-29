@@ -116,13 +116,19 @@ def process_folder(folder_path, depth=1, item_order=None, include_all=False, kee
 
     return output
 
-def compile_directory_to_file(root_folder, output, yaml_path=None, include_all=True, keep_numbers=False, output_name=None, mod_path=None):
+def compile_directory_to_file(root_folder, output, yaml_path=None, include_all=True, keep_numbers=False, output_name=None, mod_path=None, ignore_frontmatter=False):
     root_folder_name = os.path.basename(os.path.normpath(root_folder))
     root_title = root_folder_name if keep_numbers else remove_leading_number(root_folder_name)
     output_file = f"{root_title}.md" if output_name is None else output_name
 
     if os.path.exists(output):
         output_file = os.path.join(output, output_file) if os.path.isdir(output) else output
+
+    frontmatter = ''
+    frontmatter_file_path = os.path.join(os.path.normpath(root_folder), 'frontmatter.yaml')
+    if os.path.exists(frontmatter_file_path):
+        with open(frontmatter_file_path, 'r') as f:
+            frontmatter = f.read().strip()
 
     order_config = None
     item_order = None
@@ -155,10 +161,14 @@ def compile_directory_to_file(root_folder, output, yaml_path=None, include_all=T
         root_title = substitute_title(root_title, mod_config)
 
     with open(output_file, 'w') as f:
+        if frontmatter:
+            f.write('---\n')
+            f.write(frontmatter)
+            f.write('\n---\n\n')
         f.write(f"# {root_title}\n")
         f.writelines(process_folder(root_folder, item_order=item_order if order_config else None, include_all=include, keep_numbers=keep_numbers, mod_config=mod_config))
 
-def compile_all(source, output, recursive=False, yaml_path=None, include_all=True, keep_numbers=True, propagate=False, target="", mod_path=None):
+def compile_all(source, output, recursive=False, yaml_path=None, include_all=True, keep_numbers=True, propagate=False, target="", mod_path=None, ignore_frontmatter=False):
     source_target_dir = os.path.normpath(os.path.join(source, target))
 
     if not os.path.exists(source_target_dir):
@@ -205,7 +215,8 @@ def compile_all(source, output, recursive=False, yaml_path=None, include_all=Tru
         include_all=include_all,
         keep_numbers=keep_numbers,
         output_name=output_name,
-        mod_path=mod_file
+        mod_path=mod_file,
+        ignore_frontmatter=ignore_frontmatter
     )
 
     if propagate:
@@ -255,6 +266,7 @@ def main():
     parser.add_argument("-t", "--target", help="Path to the target directory relative to source directory (default: './')")
     parser.add_argument("-y", "--yaml", help="Path to the YAML order file (default: order.yaml in directory to compile)")
     parser.add_argument("-m", "--mod", help="Path to the YAML modification file")
+    parser.add_argument("-i", "--ignore-frontmatter", help="Do not add YAML frontmatter")
 
     args = parser.parse_args()
 
@@ -267,6 +279,7 @@ def main():
     propagate = args.propagate
     target = args.target
     mod_path = args.mod
+    ignore_frontmatter = args.ignore_frontmatter
 
     config_path = args.config or "compile.yaml"
     config = None
@@ -293,9 +306,12 @@ def main():
             target = target if target else config.get("target")
         if "modification_path" in config:
             mod_path = mod_path if mod_path else config.get("modification_path")
+        if "ignore_frontmatter" in config:
+            ignore_frontmatter = ignore_frontmatter if ignore_frontmatter else config.get("ignore_frontmatter")
 
     include_all = True if include_all is None else include_all
     keep_numbers = False if keep_numbers is None else keep_numbers
+    ignore_frontmatter = False if ignore_frontmatter is None else ignore_frontmatter
     recursive = False if recursive is None else recursive
     propagate = False if propagate is None else propagate
     source = os.getcwd() if source is None else source
@@ -312,7 +328,8 @@ def main():
         keep_numbers=keep_numbers,
         propagate=propagate,
         target=target,
-        mod_path=mod_path
+        mod_path=mod_path,
+        ignore_frontmatter=ignore_frontmatter
     )
 
 if __name__ == '__main__':
