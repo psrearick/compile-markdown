@@ -1,6 +1,7 @@
 import os
 import re
 import argparse
+import shutil
 import yaml
 
 def remove_leading_number(title):
@@ -168,7 +169,41 @@ def compile_directory_to_file(root_folder, output, yaml_path=None, include_all=T
         f.write(f"# {root_title}\n")
         f.writelines(process_folder(root_folder, item_order=item_order if order_config else None, include_all=include, keep_numbers=keep_numbers, mod_config=mod_config))
 
-def compile_all(source, output, recursive=False, yaml_path=None, include_all=True, keep_numbers=True, propagate=False, target="", mod_path=None, ignore_frontmatter=False):
+def delete_dirs(
+    source,
+    output,
+    target="",
+):
+    if not os.path.exists(os.path.normpath(os.path.join(source, target))):
+        return
+
+    if not os.path.isdir(output) and os.path.exists(output):
+        os.remove(os.path.normpath(output))
+        return
+
+    output_target_dir = os.path.abspath(os.path.join(output, target))
+    top_level = target == "" or target == "."
+
+    if not top_level:
+        return
+
+    if not os.path.exists(output_target_dir):
+        return
+
+    shutil.rmtree(output_target_dir)
+
+def compile_all(
+    source,
+    output,
+    recursive=False,
+    yaml_path=None,
+    include_all=True,
+    keep_numbers=True,
+    propagate=False,
+    target="",
+    mod_path=None,
+    ignore_frontmatter=False
+):
     source_target_dir = os.path.normpath(os.path.join(source, target))
 
     if not os.path.exists(source_target_dir):
@@ -237,8 +272,13 @@ def compile_all(source, output, recursive=False, yaml_path=None, include_all=Tru
         for item in os.listdir(source_target_dir):
             item_path = os.path.join(source_target_dir, item)
             if os.path.isdir(item_path):
+                no_compile = os.path.join(item_path, ".no_compile")
+                if os.path.exists(no_compile):
+                    continue
+
                 end_compile = os.path.join(os.path.dirname(item_path), ".end_compile")
                 should_continue = not os.path.exists(end_compile)
+
                 item_rel_path = os.path.relpath(item_path, source_path)
                 compile_all(
                     source,
@@ -255,15 +295,16 @@ def main():
     parser = argparse.ArgumentParser(description="Combine Markdown files from a folder hierarchy.")
     parser.add_argument("-a", "--all", action="store_true", default=None, help="Include all markdown files, even those not in the YAML file")
     parser.add_argument("-c", "--config", help="Path to the YAML config file (default: compile.yaml in source directory)")
+    parser.add_argument("-d", "--delete", action="store_true", default=None, help="Delete existing output directory before compiling")
+    parser.add_argument("-i", "--ignore-frontmatter", help="Do not add YAML frontmatter")
     parser.add_argument("-k", "--keep-numbers", action="store_true", default=None, help="Keep leading numbers in titles")
+    parser.add_argument("-m", "--mod", help="Path to the YAML modification file")
     parser.add_argument("-o", "--output", help="Output directory name (default: ./compiled in source directory)")
     parser.add_argument("-p", "--propagate", action="store_true", default=None, help="Propagate up to parent directories")
     parser.add_argument("-r", "--recursive", action="store_true", default=None, help="Compile files recursively")
     parser.add_argument("-s", "--source", help="Path to the source directory (default: current working directory)")
     parser.add_argument("-t", "--target", help="Path to the target directory relative to source directory (default: './')")
     parser.add_argument("-y", "--yaml", help="Path to the YAML order file (default: order.yaml in directory to compile)")
-    parser.add_argument("-m", "--mod", help="Path to the YAML modification file")
-    parser.add_argument("-i", "--ignore-frontmatter", help="Do not add YAML frontmatter")
 
     args = parser.parse_args()
 
@@ -276,6 +317,7 @@ def main():
     propagate = args.propagate
     target = args.target
     mod_path = args.mod
+    delete = args.delete
     ignore_frontmatter = args.ignore_frontmatter
 
     config_path = args.config or "compile.yaml"
@@ -305,16 +347,22 @@ def main():
             mod_path = mod_path if mod_path else config.get("modification_path")
         if "ignore_frontmatter" in config:
             ignore_frontmatter = ignore_frontmatter if ignore_frontmatter else config.get("ignore_frontmatter")
+        if "delete" in config:
+            delete = delete if delete else config.get("delete")
 
     include_all = True if include_all is None else include_all
     keep_numbers = False if keep_numbers is None else keep_numbers
     ignore_frontmatter = False if ignore_frontmatter is None else ignore_frontmatter
     recursive = False if recursive is None else recursive
     propagate = False if propagate is None else propagate
+    delete = False if delete is None else delete
     source = os.getcwd() if source is None else source
     output = os.path.join(source, "compiled") if output is None else output
     target = "" if target is None else target
     target = os.path.normpath(target)
+
+    if delete:
+        delete_dirs(source, output, target)
 
     compile_all(
         source,
