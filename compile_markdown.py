@@ -119,7 +119,7 @@ def process_folder(folder_path, depth=1, item_order=None, include_all=False, kee
 def compile_directory_to_file(root_folder, output, yaml_path=None, include_all=True, keep_numbers=False, output_name=None, mod_path=None, ignore_frontmatter=False):
     root_folder_name = os.path.basename(os.path.normpath(root_folder))
     root_title = root_folder_name if keep_numbers else remove_leading_number(root_folder_name)
-    output_file = f"{root_title}.md" if output_name is None else output_name
+    output_file = f"{root_title}.md" if output_name is None or not output_name else output_name
 
     if os.path.exists(output):
         output_file = os.path.join(output, output_file) if os.path.isdir(output) else output
@@ -177,11 +177,8 @@ def compile_all(source, output, recursive=False, yaml_path=None, include_all=Tru
     output_name = None
 
     if not os.path.isdir(output):
-        output_name = os.path.basename(output)
+        output_name = os.path.basename(output) if os.path.basename(output) else output_name
         output = os.path.dirname(output)
-
-    if not os.path.exists(output):
-        return
 
     output_target_dir = os.path.join(output, target)
 
