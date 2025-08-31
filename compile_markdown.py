@@ -3,6 +3,7 @@ import re
 import argparse
 import shutil
 import yaml
+from typing import Any
 
 def remove_leading_number(title):
     return re.sub(r'^\d+\s+', '', title)
@@ -13,9 +14,97 @@ def substitute_title(title, mod_config):
 
     return title if substitution is None else substitution
 
-def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=False, mod_config=None):
-    with open(item_path, 'r') as f:
-        content = f.read()
+def read_file_safely(file_path):
+    """
+    Returns file content or empty string if file can't be read.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except (FileNotFoundError, PermissionError, IOError):
+        return ""
+
+def adjust_headings(content: str, base_level_offset: int = 0, keep_numbers: bool = False, mod_config: Any = None) -> str:
+    """
+    Adjusts all markdown heading levels in a string by a given offset.
+    """
+    if base_level_offset == 0:
+        return content
+
+    for i in range(8, 0, -1):
+        def replace_func(match: re.Match) -> str:
+            original_level = len(match.group(1))
+            new_level = original_level + base_level_offset
+
+            new_level = max(1, min(8, new_level))
+
+            title = match.group(2)
+
+            if not keep_numbers:
+                title = remove_leading_number(title)
+
+            title = substitute_title(title, mod_config) if mod_config else title
+
+            return f'{"#" * new_level} {title}'
+
+        search_pattern = re.compile(rf"^(#{'{'}{i}{'}'}) (.*)", re.MULTILINE)
+        content = search_pattern.sub(replace_func, content)
+
+    return content
+
+def process_includes(content: str, base_dir: str) -> str:
+    """
+    Processes enhanced placeholders like {{ file: 'path', level: 3 }}
+    """
+    include_pattern = re.compile(r'\{\{.*?\}\}', re.DOTALL)
+
+    def replace_match(match: re.Match) -> str:
+        placeholder_text = match.group(0)
+
+        inner_content = placeholder_text[2:-2].strip().replace(',','\n')
+        inner_content = "\n".join([line.strip() for line in inner_content.splitlines()])
+
+        try:
+            config = yaml.safe_load(inner_content)
+            if not isinstance(config, dict) or 'file' not in config:
+                return ""
+        except yaml.YAMLError as e:
+            return ""
+
+        # relative_path = config['file']
+        # include_path = os.path.abspath(os.path.join(base_dir, relative_path))
+
+        include_path = config['file']
+
+        if not os.path.exists(include_path):
+            return ""
+
+        included_content = read_file_safely(include_path)
+
+        if not include_path:
+            return ""
+
+        start_level = config.get('level', 1)
+
+        offset = start_level - 1
+
+        adjusted_included_content = adjust_headings(included_content, offset)
+
+        return process_includes(adjusted_included_content, os.path.dirname(include_path))
+
+    while include_pattern.search(content):
+        content = include_pattern.sub(replace_match, content)
+
+    return content
+
+def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=False, mod_config=None) -> str:
+
+    content = read_file_safely(item_path)
+
+    if not content:
+        return ""
+
+    content = process_includes(content, os.path.dirname(item_path))
 
     frontmatter_content = ""
 
@@ -47,15 +136,7 @@ def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=Fal
     content = re.sub(r'^# .+\n', '', content, count=1, flags=re.MULTILINE)
     content = f"{new_title_header}\n\n{frontmatter_content}{content.strip()}\n"
 
-    for i in range(6, 0, -1):
-        search_pattern = rf'^{"#" * i} (.+)$'
-        def replace_func(match):
-            title = match.group(1)
-            if not keep_numbers:
-                title = remove_leading_number(title)
-            title = substitute_title(title, mod_config) if mod_config else title
-            return f'{"#" * (i + depth)} {title}'
-        content = re.sub(search_pattern, replace_func, content, flags=re.MULTILINE)
+    content = adjust_headings(content, depth, keep_numbers, mod_config)
 
     return f"\n{content}"
 
