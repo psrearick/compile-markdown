@@ -54,50 +54,32 @@ def adjust_headings(content: str, base_level_offset: int = 0, keep_numbers: bool
 
 def process_includes(content: str, base_dir: str) -> str:
     """
-    Processes enhanced placeholders like {{ file: 'path', level: 3, use_title: False }}
+    Processes placeholders using this syntax: <!-- include file="path/to/file.md" heading-level="3" show-title="false" -->
     """
-    include_pattern = re.compile(r'\{\{.*?\}\}', re.DOTALL)
+    pattern = re.compile(r'<!-- include\s+((?:[\w-]+="[^"]*"\s*)+)-->')
+    attr_pattern = re.compile(r'([\w-]+)="([^"]*)"')
 
-    def replace_match(match: re.Match) -> str:
-        placeholder_text = match.group(0)
+    def parse_attributes(attr_string: str) -> dict:
+        return dict(attr_pattern.findall(attr_string))
 
-        inner_content = placeholder_text[2:-2].strip().replace(',','\n')
-        inner_content = "\n".join([line.strip() for line in inner_content.splitlines()])
+    def replace_include(match: re.Match) -> str:
+        include_config = parse_attributes(match.group(0))
+        path = include_config['file']
+        level = int(include_config.get('heading-level', 1))
+        show_title = include_config.get('show-title', "true").lower() == "true"
 
-        try:
-            config = yaml.safe_load(inner_content)
-            if not isinstance(config, dict) or 'file' not in config:
-                return ""
-        except yaml.YAMLError as e:
-            return ""
+        included_content = read_file_safely(path).strip()
 
-        include_path = config['file']
-
-        if not os.path.exists(include_path):
-            return ""
-
-        included_content = read_file_safely(include_path).strip()
-
-        if not include_path:
-            return ""
-
-        start_level = config.get('level', 1)
-        use_title = config.get("use_title", True)
-
-        if not use_title:
+        if not show_title:
             included_content = re.sub(r'^# .+$\n*', '', included_content, count=1, flags=re.MULTILINE)
-            start_level -= 1
+            level -= 1
 
-        offset = start_level - 1
+        level = max(0, level - 1)
+        included_content = adjust_headings(included_content, level)
 
-        adjusted_included_content = adjust_headings(included_content, offset)
+        return included_content
 
-        return process_includes(adjusted_included_content, os.path.dirname(include_path))
-
-    while include_pattern.search(content):
-        content = include_pattern.sub(replace_match, content)
-
-    return content
+    return pattern.sub(replace_include, content)
 
 def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=False, mod_config=None) -> str:
 
