@@ -54,7 +54,7 @@ def adjust_headings(content: str, base_level_offset: int = 0, keep_numbers: bool
 
 def process_includes(content: str, base_dir: str) -> str:
     """
-    Processes enhanced placeholders like {{ file: 'path', level: 3 }}
+    Processes enhanced placeholders like {{ file: 'path', level: 3, use_title: False }}
     """
     include_pattern = re.compile(r'\{\{.*?\}\}', re.DOTALL)
 
@@ -71,20 +71,22 @@ def process_includes(content: str, base_dir: str) -> str:
         except yaml.YAMLError as e:
             return ""
 
-        # relative_path = config['file']
-        # include_path = os.path.abspath(os.path.join(base_dir, relative_path))
-
         include_path = config['file']
 
         if not os.path.exists(include_path):
             return ""
 
-        included_content = read_file_safely(include_path)
+        included_content = read_file_safely(include_path).strip()
 
         if not include_path:
             return ""
 
         start_level = config.get('level', 1)
+        use_title = config.get("use_title", True)
+
+        if not use_title:
+            included_content = re.sub(r'^# .+$\n*', '', included_content, count=1, flags=re.MULTILINE)
+            start_level -= 1
 
         offset = start_level - 1
 
@@ -170,6 +172,10 @@ def process_folder(folder_path, depth=1, item_order=None, include_all=False, kee
             processed_items.add(item_name)
 
             if os.path.isdir(item_path):
+                no_compile = os.path.join(item_path, ".no_compile")
+                if os.path.exists(no_compile):
+                    continue
+
                 folder_title = custom_title or os.path.basename(item_path)
                 if not keep_numbers:
                     folder_title = remove_leading_number(folder_title)
@@ -185,6 +191,9 @@ def process_folder(folder_path, depth=1, item_order=None, include_all=False, kee
             if item not in processed_items:
                 item_path = os.path.join(folder_path, item)
                 if os.path.isdir(item_path):
+                    no_compile = os.path.join(item_path, ".no_compile")
+                    if os.path.exists(no_compile):
+                        continue
                     item_title = os.path.basename(item_path)
                     folder_title = item_title if keep_numbers else remove_leading_number(item_title)
                     folder_title = substitute_title(folder_title, mod_config) if mod_config else folder_title
@@ -305,6 +314,10 @@ def compile_all(
     output_target_dir = os.path.abspath(output_target_dir)
     source_path = os.path.abspath(source)
     output_path = os.path.abspath(output)
+
+    no_compile = os.path.join(source_target_dir, ".no_compile")
+    if os.path.exists(no_compile):
+        return
 
     if source_path not in os.path.commonpath([source_path, source_target_dir]):
         source_target_dir = source_path
