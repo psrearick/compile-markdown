@@ -372,7 +372,7 @@ def main():
     parser.add_argument("-a", "--all", action="store_true", default=None, help="Include all markdown files, even those not in the YAML file")
     parser.add_argument("-c", "--config", help="Path to the YAML config file (default: compile.yaml in source directory)")
     parser.add_argument("-d", "--delete", action="store_true", default=None, help="Delete existing output directory before compiling")
-    parser.add_argument("-i", "--ignore-frontmatter", help="Do not add YAML frontmatter")
+    parser.add_argument("-i", "--ignore-frontmatter", action="store_true", default=None, help="Do not add YAML frontmatter")
     parser.add_argument("-k", "--keep-numbers", action="store_true", default=None, help="Keep leading numbers in titles")
     parser.add_argument("-m", "--mod", help="Path to the YAML modification file")
     parser.add_argument("-o", "--output", help="Output directory name (default: ./compiled in source directory)")
