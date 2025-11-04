@@ -81,7 +81,7 @@ def process_includes(content: str, base_dir: str) -> str:
 
     return pattern.sub(replace_include, content)
 
-def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=False, mod_config=None) -> str:
+def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=False, mod_config=None, ignore_frontmatter=False) -> str:
 
     content = read_file_safely(item_path)
 
@@ -95,7 +95,7 @@ def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=Fal
     frontmatter_pattern = r'^---\n(.*?)\n---\n'
     frontmatter_match = re.match(frontmatter_pattern, content, re.DOTALL)
     if frontmatter_match:
-        frontmatter_content = f"## Metadata\n\n{frontmatter_match.group(1).strip()}" + "\n\n"
+        frontmatter_content = "" if ignore_frontmatter else f"## Metadata\n\n{frontmatter_match.group(1).strip()}" + "\n\n"
         content = content[frontmatter_match.end():].strip()
     else:
         content = content.strip()
@@ -124,7 +124,7 @@ def get_content_for_path(item_path, depth=1, custom_title=None, keep_numbers=Fal
 
     return f"\n{content}"
 
-def process_folder(folder_path, depth=1, item_order=None, include_all=False, keep_numbers=False, mod_config=None):
+def process_folder(folder_path, depth=1, item_order=None, include_all=False, keep_numbers=False, mod_config=None, ignore_frontmatter=False):
     output = []
     processed_items = set()
 
@@ -163,9 +163,9 @@ def process_folder(folder_path, depth=1, item_order=None, include_all=False, kee
                     folder_title = remove_leading_number(folder_title)
                 folder_title = substitute_title(folder_title, mod_config) if mod_config else folder_title
                 output.append(f"\n{'#' * (depth + 1)} {folder_title}\n")
-                output.extend(process_folder(item_path, depth + 1, sub_item_order, include_all=(include_all or sub_item_order is None), keep_numbers=keep_numbers, mod_config=mod_config))
+                output.extend(process_folder(item_path, depth + 1, sub_item_order, include_all=(include_all or sub_item_order is None), keep_numbers=keep_numbers, mod_config=mod_config, ignore_frontmatter=ignore_frontmatter))
             elif item_name.endswith('.md') and os.path.isfile(item_path):
-                output.append(get_content_for_path(item_path, depth, custom_title, keep_numbers=keep_numbers, mod_config=mod_config))
+                output.append(get_content_for_path(item_path, depth, custom_title, keep_numbers=keep_numbers, mod_config=mod_config, ignore_frontmatter=ignore_frontmatter))
 
     if include_all:
         all_items = sorted(os.listdir(folder_path))
@@ -180,9 +180,9 @@ def process_folder(folder_path, depth=1, item_order=None, include_all=False, kee
                     folder_title = item_title if keep_numbers else remove_leading_number(item_title)
                     folder_title = substitute_title(folder_title, mod_config) if mod_config else folder_title
                     output.append(f"\n{'#' * (depth + 1)} {folder_title}\n")
-                    output.extend(process_folder(item_path, depth + 1, None, include_all=include_all, keep_numbers=keep_numbers, mod_config=mod_config))
+                    output.extend(process_folder(item_path, depth + 1, None, include_all=include_all, keep_numbers=keep_numbers, mod_config=mod_config, ignore_frontmatter=ignore_frontmatter))
                 elif item.endswith('.md') and os.path.isfile(item_path):
-                    output.append(get_content_for_path(item_path, depth, keep_numbers=keep_numbers, mod_config=mod_config))
+                    output.append(get_content_for_path(item_path, depth, keep_numbers=keep_numbers, mod_config=mod_config, ignore_frontmatter=ignore_frontmatter))
 
     if len(output) > 0 and output[0].startswith("\n* * *\n\n"):
         output[0] = output[0][7:]
@@ -239,7 +239,7 @@ def compile_directory_to_file(root_folder, output, yaml_path=None, include_all=T
             f.write(frontmatter)
             f.write('\n---\n\n')
         f.write(f"# {root_title}\n")
-        f.writelines(process_folder(root_folder, item_order=item_order if order_config else None, include_all=include, keep_numbers=keep_numbers, mod_config=mod_config))
+        f.writelines(process_folder(root_folder, item_order=item_order if order_config else None, include_all=include, keep_numbers=keep_numbers, mod_config=mod_config, ignore_frontmatter=ignore_frontmatter))
 
 def delete_dirs(
     source,
@@ -339,7 +339,8 @@ def compile_all(
                 keep_numbers=keep_numbers,
                 propagate=propagate,
                 target=new_target,
-                mod_path=mod_file
+                mod_path=mod_file,
+                ignore_frontmatter=ignore_frontmatter
             )
 
         return
@@ -364,7 +365,8 @@ def compile_all(
                     keep_numbers=keep_numbers,
                     propagate=propagate,
                     target=item_rel_path,
-                    mod_path=mod_file
+                    mod_path=mod_file,
+                    ignore_frontmatter=ignore_frontmatter
                 )
 
 def main():
