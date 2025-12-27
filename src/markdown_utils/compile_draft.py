@@ -39,3 +39,6 @@ def main():
     remove_directory(destination)
     copy_directory(source, destination)
     prevent_headings(destination)
+
+if __name__ == "__main__":
+    main()

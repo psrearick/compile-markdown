@@ -32,3 +32,6 @@ def main():
         sys.exit(1)
 
     rename_files(args.path, args.start, args.digits)
+
+if __name__ == "__main__":
+    main()
