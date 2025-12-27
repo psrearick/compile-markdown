@@ -3,11 +3,14 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "compile-markdown"
+name = "markdown-utils"
 version = "0.1.0"
 dependencies = [
     "PyYAML",
 ]
 
 [project.scripts]
-compile-markdown = "compile_markdown:main"
+compile-markdown = "markdown_utils.compile_markdown:main"
+compile-draft = "markdown_utils.compile_draft:main"
+number-directory = "markdown_utils.number_directory:main"
+remove-filesystem-symbols = "markdown_utils.remove_filesystem_symbols:main"

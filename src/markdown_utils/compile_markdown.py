@@ -454,6 +454,3 @@ def main():
         mod_path=mod_path,
         ignore_frontmatter=ignore_frontmatter
     )
-
-if __name__ == '__main__':
-    main()
