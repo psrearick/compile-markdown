@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "compile-markdown"
+version = "0.1.0"
+dependencies = [
+    "PyYAML",
+]
+
+[project.scripts]
+compile-markdown = "compile_markdown:main"
